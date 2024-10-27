@@ -1,0 +1,79 @@
+model coches
+
+class Clock
+ attributes
+    NOW : Integer init = 0 -- POSIX representation starting at 0
+    resolution: Integer init = 1 
+--operations
+
+end
+
+class Ciudad
+   attributes
+   nombre: String
+   --distancia: Real
+end
+
+class Coche 
+   attributes
+      fechaMatriculación : Integer
+      kmRecorridos : Real derive
+      diasGarantia : Integer --cuando se matricula son 400 y tmbn se ponen los q diga el taller oficial al hacer una revision ahi
+
+      --para acceder a la ultima revision habria que mirar la fecha fin mas grande de las reparaciones que no son averias 
+      necesitaMantenimiento : Boolean derive:
+      --que sea true si han pasado mas de 400 desde la matriculacion o mas de 100 de la ultima revision
+      
+end
+
+class Viaje
+   attributes
+      fechaSalida : Integer
+      fechaLlegada : Integer
+      km : Real
+end
+
+class Revision 
+   attributes
+      fechaInicio : Integer
+      fechaFin : Integer
+end
+
+--crear enumeracion
+
+class Taller
+    attributes
+        esOficial : Boolean
+        garantiaDias : Integer
+end 
+
+-- Terminar y revisar cuando el diagrama de clases esté completo
+
+associationclass Conexion between 
+   Ciudad [1] role ciudadOrigen
+   Ciudad [*] role ciudadDestino
+   attributes
+      kmDistancia : Real
+end
+
+association tallerCoche between
+    Coche [0..1]   role  enTaller
+    Taller [0..*]   role  contieneCoches
+
+association cocheCiudad between
+    Coche [0..1]   role enCiudad
+    Ciudad [0..*]  role ciudadCoche 
+
+association ViajeCiudadOrigen between 
+   Viaje[1] role viajeOrigen
+   Ciudad [1] role ciudadViajeOrigen
+
+
+association ViajeCiudadDestino between 
+   Viaje[1] role viajeDestino
+   Ciudad [1] role CiudadViajeDestino
+
+association CocheViaje between
+   Coche[1] role coche
+   Viaje [*] role viajes
+
