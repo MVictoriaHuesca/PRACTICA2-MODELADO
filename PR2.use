@@ -18,14 +18,14 @@ end
 
 class Coche 
    attributes
-      fechaMatriculación : Integer
-      kmRecorridos : Real derive
+      fechaMatriculacion : Integer
+      --kmRecorridos : Real derive
       diasGarantia : Integer --cuando se matricula son 400 y tmbn se ponen los q diga el taller oficial al hacer una revision ahi
 
       --para acceder a la ultima revision habria que mirar la fecha fin mas grande de las reparaciones que no son averias 
-      necesitaMantenimiento : Boolean derive:
+      --necesitaMantenimiento : Boolean derive:
       --que sea true si han pasado mas de 400 desde la matriculacion o mas de 100 de la ultima revision
-      
+
 end
 
 class Viaje
@@ -66,11 +66,6 @@ associationclass Conexion between
       kmDistancia : Real
 end
 
-association CocheEnTaller between
-    Coche [0..1]   role  coche   -- Un taller puede albergar un coche o ninguno
-    Taller [0..1]   role  taller -- Un coche puede estar en un taller o no estarlo
-end
-
 association CocheEnCiudad between
     Coche [0..*]   role coche      -- Una ciudad puede albergar indeterminados coches
     Ciudad [1]  role ciudad    -- Un choche está en una sola ciudad a la vez
@@ -98,10 +93,12 @@ end
 
 association CocheEnRevision between 
    Coche[1] role coche -- Una revisión se realiza a un solo coche
-   Revision[0..*] role revision -- Un coche puede tener muchas revisiones o ninguna (?)
+   Revision[0..1] role revision -- Un coche puede tener como mucho una revisión
 end
 
 association RevisionEnTaller between
    Revision[0..*] role revision  -- Un taller puede realizar muchas revisiones
    Taller[1] role taller   -- Una revisión se realiza en un solo taller
 end
+
+
