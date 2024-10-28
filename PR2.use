@@ -1,5 +1,7 @@
 model coches
 
+
+
 enum TipoReparacion {
     mantenimiento,
     reparacion
@@ -20,12 +22,11 @@ class Coche
    attributes
       fechaMatriculacion : Integer
       --kmRecorridos : Real derive
-      diasGarantia : Integer --cuando se matricula son 400 y tmbn se ponen los q diga el taller oficial al hacer una revision ahi
+      diasGarantia : Integer --cuando se matricula son 400 y cada día que pasa se le resta 1. Tmbn se ponen los q diga el taller oficial al hacer una revision ahi
 
       --para acceder a la ultima revision habria que mirar la fecha fin mas grande de las reparaciones que no son averias 
       --necesitaMantenimiento : Boolean derive:
       --que sea true si han pasado mas de 400 desde la matriculacion o mas de 100 de la ultima revision
-
 end
 
 class Viaje
@@ -58,17 +59,17 @@ end
 -- Terminar y revisar cuando el diagrama de clases esté completo
 
 -- ¿Cuando se conectan dos pares de ciudades es necesario crear dos relaciones ej: Madrid-Barcelona y Barcelona-Madrid?
--- Para que haya una conexión tiene que haber al menos dos ciudades, además una misma ciudad puede tener conexión con más ciudades
+-- Para que haya una conexión tiene que haber al menos dos ciudades, además una misma ciudad puede tener conexión con más ciudades (se considera un modelo con solo una ciudad)
 associationclass Conexion between   
-   Ciudad [1..*] role ciudadOrigen  
-   Ciudad [1..*] role ciudadDestino
+   Ciudad [0..*] role ciudadOrigen  
+   Ciudad [0..*] role ciudadDestino
    attributes
       kmDistancia : Real
 end
 
 association CocheEnCiudad between
-    Coche [0..*]   role coche      -- Una ciudad puede albergar indeterminados coches
-    Ciudad [1]  role ciudad    -- Un choche está en una sola ciudad a la vez
+    Coche [*]   role coche      -- Una ciudad puede albergar indeterminados coches
+    Ciudad [0..1]  role ciudad    -- Un coche solo puede estar en una ciudad (si no se encuentra viajando)
 end
 
 association ViajeCiudadOrigen between 
@@ -83,22 +84,121 @@ end
 
 association CocheViaje between
    Coche[1] role coche  -- Un viaje es realizado por un coche
-   Viaje [0..1] role viaje   --Un mismo coche no puede estar en más de un viaje a la vez(?)
+   Viaje [*] role viaje   --Un coche puede haber realizado ninguno o varios viajes
 end
 
 association TallerEnCiudad between
-   Taller[0..*] role taller -- Una ciudad puede albergar indeterminados talleres
+   Taller[*] role taller -- Una ciudad puede albergar indeterminados talleres
    Ciudad[1] role ciudad -- Un taller está en una ciudad
 end
 
 association CocheEnRevision between 
    Coche[1] role coche -- Una revisión se realiza a un solo coche
-   Revision[0..1] role revision -- Un coche puede tener como mucho una revisión
+   Revision[*] role revision -- Un coche puede haber tenido ninguna o varias revisiones
 end
 
 association RevisionEnTaller between
-   Revision[0..*] role revision  -- Un taller puede realizar muchas revisiones
+   Revision[*] role revision  -- Un taller puede realizar muchas revisiones
    Taller[1] role taller   -- Una revisión se realiza en un solo taller
 end
 
 
+--INVARIANTES Y RESTRICCIONES
+
+constraints
+context Conexion
+   -- Cada ciudad debe estar al menos a 5km de distancia de otra
+   inv DistanciaMinima: self.kmDistancia->forAll(d | d >= 5)
+
+
+   
+
+context Ciudad
+   -- En cada ciudad habrá, a lo sumo, un taller oficial.     
+   inv unicoTallerOficial: self.taller->select(t | t.oclIsTypeOf(TallerOficial))->size() <= 1
+
+context Coche      
+   -- Un coche se encontrará en todo momento bien realizando un solo viaje determinado o bien en una ciudad.  
+   inv cocheViajandoOEnCiudad:
+   
+
+   -- ESTO SERIA ATRIBUTO DERIVADO inv necesitaMantenimiento:
+   --   (Clock::now > self.fechaMatriculacion + 400) implies
+   --   (self.ultimaRevision->isEmpty() or 
+   --   (Clock::now - self.ultimaRevision.fechaFin >= 100))
+
+--Esta invariante indica que un coche necesita mantenimiento si ha pasado más de un año (100 días) desde su última revisión de 
+--mantenimiento o si tiene más de 400 días desde su matriculación sin ninguna revisión. Usamos ultimaRevision->isEmpty() para saber 
+--si no ha tenido revisiones, 
+--y Clock::now - self.ultimaRevision.fechaFin >= 100 para verificar el tiempo desde la última revisión de mantenimiento.
+
+
+
+   -- Dos viajes no pueden solaparse en el tiempo, es decir, un viaje debe ocurrir siempre después de otro, 
+   -- pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
+   -- Las ciudades de origen y destino de los viajes deben ser coherentes. Es decir, si un coche realiza un 
+   -- viaje desde la ciudad A hasta la ciudad B, el próximo viaje debe partir desde la ciudad B.
+   inv coherenciaViajes: 
+      self.viaje->sortedBy(v | v.fechaSalida)->forAll(v1, v2 |
+         v1 <> v2 and v1.fechaLlegada <= v2.fechaSalida implies
+         v1.ciudadDestino = v2.ciudadOrigen)
+
+context Viaje
+   -- La fecha de llegada de un viaje tiene que ser posterior a la fecha de salida
+   inv viajeTerminado: 
+      self.terminado implies self.fechaSalida <= self.fechaLlegada
+
+   -- Ciudad destino y origen de un viaje deben ser diferentes
+   inv ViajeCiudadesDistintas:
+      self.ciudadOrigen <> self.ciudadDestino
+   
+   -- La ciudad origen de un viaje debe ser la ciudad en la que se encuentra el coche
+   inv ViajeCiudadOrigenCoche:
+      self.coche.ciudad = self.ciudadOrigen
+
+   -- ES UNA PRECONDICION DE VIAJE inv ViajeCiudadOrigenEnCiudadCoche:
+       
+   
+
+context Revision
+
+   --Todas las revisiones deben tener lugar después de que el coche se matriculase.
+   inv revisionPosteriorAMatriculacion: 
+      self.coche.fechaMatriculacion <= self.fechaInicio
+
+   -- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
+   inv RevisionMismaCiudadCoche:
+      self.coche.ciudad = self.taller.ciudad
+
+   -- Toda revisión debe teer fecha de inicio y fecha de fin
+   inv RevisionFechaInicioFin:
+      forAll(r | r.fechaInicio)
+   
+
+   
+
+
+
+
+
+ 
+-- Si el coche ha completado al menos un viaje y no se encuentra viajando, entonces debe encontrarse en la ciudad a la que llegó en su último viaje.
+
+
+
+
+-- Dos viajes no pueden solaparse en el tiempo, es decir, un viaje debe ocurrir siempre después de otro, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
+-- Las ciudades de origen y destino de los viajes deben ser coherentes. Es decir, si un coche
+--    realiza un viaje desde la ciudad A hasta la ciudad B, el próximo viaje debe partir desde la
+--    ciudad B.
+
+--PREGUNTAS--------------------------------------------------------
+
+-- ¿Tiene que haber al menos 2 ciudades?
+-- ¿Todas las ciudades están conectadas entre sí? ¿Hay que comrpobar que todas están conectadas con todas?
+-- ¿Cuando se conectan dos pares de ciudades es necesario crear dos relaciones ej: Madrid-Barcelona y Barcelona-Madrid?
+
+-- Un coche puede tener como mucho una revisión EN UN MISMO INSTANTE?
+-- ¿Un coche puede estar relacionado con más de un viaje a la vez?
+-- ¿Una revisión se inicializa con fecha de fin?
+-- ¿la relación coche en ciudad es necesario borrarla una vez empieza el viaje o cuando finaliza el viaje?
