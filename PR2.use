@@ -1,8 +1,6 @@
 model coches
 
-
-
-enum TipoReparacion {
+enum TipoRevision {
     mantenimiento,
     reparacion
 }
@@ -11,8 +9,6 @@ class Clock
  attributes
     NOW : Integer init = 0 -- POSIX representation starting at 0
     resolution: Integer init = 1 
---operations
-
 end
 
 class Ciudad
@@ -20,7 +16,7 @@ end
 
 class Coche 
    attributes
-      fechaMatriculacion : Integer
+      fechaMatriculacion : Integer -- ¿Es cuando se crea?
       --kmRecorridos : Real derive
       diasGarantia : Integer --cuando se matricula son 400 y cada día que pasa se le resta 1. Tmbn se ponen los q diga el taller oficial al hacer una revision ahi
 
@@ -40,6 +36,7 @@ class Revision
    attributes
       fechaInicio : Integer
       fechaFin : Integer
+      tipo : TipoRevision
 end
 
 --crear enumeracion
@@ -73,28 +70,28 @@ association CocheEnCiudad between
 end
 
 association ViajeCiudadOrigen between 
-   Viaje[0..1] role viajeOrigen  -- Una ciudad puede estar asociada o no a un viaje
+   Viaje[0..*] role viajeOrigen  -- Una ciudad puede estar asociada o no a varios viajes
    Ciudad [1] role ciudadViajeOrigen  -- Un viaje tiene que estar asociado a una ciudad
 end
 
 association ViajeCiudadDestino between 
-   Viaje[0..1] role viajeDestino -- Una ciudad puede estar asociada o no a un viaje
+   Viaje[0..*] role viajeDestino -- Una ciudad puede estar asociada o no a varios viajes
    Ciudad [1] role ciudadViajeDestino -- Un viaje tiene que estar asociado a una ciudad
 end 
 
 association CocheViaje between
    Coche[1] role coche  -- Un viaje es realizado por un coche
-   Viaje [*] role viaje   --Un coche puede haber realizado ninguno o varios viajes
+   Viaje [0..*] role viaje   --Un coche puede haber realizado ninguno o varios viajes
 end
 
 association TallerEnCiudad between
-   Taller[*] role taller -- Una ciudad puede albergar indeterminados talleres
+   Taller[0..*] role taller -- Una ciudad puede albergar indeterminados talleres
    Ciudad[1] role ciudad -- Un taller está en una ciudad
 end
 
 association CocheEnRevision between 
    Coche[1] role coche -- Una revisión se realiza a un solo coche
-   Revision[*] role revision -- Un coche puede haber tenido ninguna o varias revisiones
+   Revision[0..*] role revision -- Un coche puede haber tenido ninguna o varias revisiones
 end
 
 association RevisionEnTaller between
@@ -106,55 +103,49 @@ end
 --INVARIANTES Y RESTRICCIONES
 
 constraints
+
 context Conexion
    -- Cada ciudad debe estar al menos a 5km de distancia de otra
-   inv DistanciaMinima: self.kmDistancia->forAll(d | d >= 5)
-
-
-   
+   inv DistanciaMinima: 
+      self.kmDistancia >= 5
 
 context Ciudad
    -- En cada ciudad habrá, a lo sumo, un taller oficial.     
-   inv unicoTallerOficial: self.taller->select(t | t.oclIsTypeOf(TallerOficial))->size() <= 1
+   inv unicoTallerOficial: 
+      self.taller->select(t | t.oclIsTypeOf(TallerOficial))->size() <= 1
 
 context Coche      
    -- Un coche se encontrará en todo momento bien realizando un solo viaje determinado o bien en una ciudad.  
-   inv cocheViajandoOEnCiudad:
+   --inv cocheViajandoOEnCiudad:
    
-
+   --Este atributo indica que un coche necesita mantenimiento si ha pasado más de un año (100 días) desde su última revisión de 
+   --mantenimiento o si tiene más de 400 días desde su matriculación sin ninguna revisión. Usamos ultimaRevision->isEmpty() para saber 
+   --si no ha tenido revisiones, 
+   --y Clock::now - self.ultimaRevision.fechaFin >= 100 para verificar el tiempo desde la última revisión de mantenimiento.
    -- ESTO SERIA ATRIBUTO DERIVADO inv necesitaMantenimiento:
    --   (Clock::now > self.fechaMatriculacion + 400) implies
    --   (self.ultimaRevision->isEmpty() or 
    --   (Clock::now - self.ultimaRevision.fechaFin >= 100))
 
---Esta invariante indica que un coche necesita mantenimiento si ha pasado más de un año (100 días) desde su última revisión de 
---mantenimiento o si tiene más de 400 días desde su matriculación sin ninguna revisión. Usamos ultimaRevision->isEmpty() para saber 
---si no ha tenido revisiones, 
---y Clock::now - self.ultimaRevision.fechaFin >= 100 para verificar el tiempo desde la última revisión de mantenimiento.
-
-
-
-   -- Dos viajes no pueden solaparse en el tiempo, es decir, un viaje debe ocurrir siempre después de otro, 
-   -- pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
-   -- Las ciudades de origen y destino de los viajes deben ser coherentes. Es decir, si un coche realiza un 
-   -- viaje desde la ciudad A hasta la ciudad B, el próximo viaje debe partir desde la ciudad B.
+   -- Dos viajes no pueden solaparse en el tiempo, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
    inv coherenciaViajes: 
       self.viaje->sortedBy(v | v.fechaSalida)->forAll(v1, v2 |
          v1 <> v2 and v1.fechaLlegada <= v2.fechaSalida implies
-         v1.ciudadDestino = v2.ciudadOrigen)
+         v1.ciudadViajeDestino = v2.ciudadViajeOrigen)
 
 context Viaje
    -- La fecha de llegada de un viaje tiene que ser posterior a la fecha de salida
-   inv viajeTerminado: 
-      self.terminado implies self.fechaSalida <= self.fechaLlegada
+   inv fechaLlegadaPosteriorFechaSalida: 
+      --self.terminado implies self.fechaSalida <= self.fechaLlegada   -- más bien sería comprobar que hay fecha de llegada y si hay fecha de llegada se comprueba que sea mayor que la de salida
+       not self.fechaLlegada.oclIsUndefined() implies self.fechaSalida <= self.fechaLlegada
 
    -- Ciudad destino y origen de un viaje deben ser diferentes
    inv ViajeCiudadesDistintas:
-      self.ciudadOrigen <> self.ciudadDestino
+      self.ciudadViajeOrigen <> self.ciudadViajeDestino
    
    -- La ciudad origen de un viaje debe ser la ciudad en la que se encuentra el coche
    inv ViajeCiudadOrigenCoche:
-      self.coche.ciudad = self.ciudadOrigen
+      self.coche.ciudad = self.ciudadViajeOrigen
 
    -- ES UNA PRECONDICION DE VIAJE inv ViajeCiudadOrigenEnCiudadCoche:
        
@@ -170,9 +161,13 @@ context Revision
    inv RevisionMismaCiudadCoche:
       self.coche.ciudad = self.taller.ciudad
 
-   -- Toda revisión debe teer fecha de inicio y fecha de fin
+   -- Toda revisión debe tener fecha de inicio y fecha de fin
    inv RevisionFechaInicioFin:
-      forAll(r | r.fechaInicio)
+      not self.fechaInicio.oclIsUndefined() and not self.fechaFin.oclIsUndefined()
+   
+   -- ¿Tenemos que comprobar tambié que la fecha de inicio sea anterior a la de fin?
+
+
    
 
    
@@ -202,3 +197,7 @@ context Revision
 -- ¿Un coche puede estar relacionado con más de un viaje a la vez?
 -- ¿Una revisión se inicializa con fecha de fin?
 -- ¿la relación coche en ciudad es necesario borrarla una vez empieza el viaje o cuando finaliza el viaje?
+
+---------------------------------------------
+--    ¿ La fecha de matriculación de un coche como se determina, es el valor del reloj cuando se crea el coche 
+--    o se introduce manualmente?
