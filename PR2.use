@@ -165,7 +165,7 @@ context Revision
    inv RevisionFechaInicioFin:
       not self.fechaInicio.oclIsUndefined() and not self.fechaFin.oclIsUndefined()
    
-   -- ¿Tenemos que comprobar tambié que la fecha de inicio sea anterior a la de fin?
+   -- Solo una revisión en un momento dado
 
 
    
@@ -201,3 +201,8 @@ context Revision
 ---------------------------------------------
 --    ¿ La fecha de matriculación de un coche como se determina, es el valor del reloj cuando se crea el coche 
 --    o se introduce manualmente?
+--   ¿Tenemos que comprobar también que la fecha de inicio de una revisión sea anterior a la de fin?
+--    Un viaje y una revisión no pueden ocurrir a la vez (o si?), habría que compobar que para que empezar a hacer un
+--   viaje no esté en revisión (no se si esto entra en el apartado a, puede que sea algo que se modele en el comportamiento después)
+--   ¿Hay que hacer invariante que compruebe que el tipo de revisión es o de mantenimiento o de reparación (es decir no
+--   es undefined?
