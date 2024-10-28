@@ -1,21 +1,18 @@
 INVARIANTES Y RESTRICCIONES P2 MODELADO
 
 INVARIANTES
-- Cada ciudad debe estar al menos a 5km de distancia de otra
-- Todas las revisiones deben tener lugar después de que el coche se matriculase.
-- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
-- Si el coche está realizando actualmente algún viaje, dicho viaje únicamente tendrá fecha de salida, pero no de llegada.
-- Un coche se encontrará en todo momento bien realizando un viaje determinado o bien en una ciudad.
-- Si el coche ha completado al menos un viaje y no se encuentra viajando, entonces debe encontrarse en la ciudad a la que llegó en su último viaje.
-- Dos viajes no pueden solaparse en el tiempo, es decir, un viaje debe ocurrir siempre después de otro, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
-- Las ciudades de origen y destino de los viajes deben ser coherentes. Es decir, si un coche
-realiza un viaje desde la ciudad A hasta la ciudad B, el próximo viaje debe partir desde la
-ciudad B.
-- Los kilómetros que tiene un coche deben ser la suma de los kilómetros de los viajes que
-dicho coche ha completado. En nuestro sistema, no nos debemos preocupar de insertar manualmente el número de kilómetros de un coche, pues debería estar actualizado en todo momento.
-- Un coche está en garantía si no han pasado 4 años desde que se matriculó. También está
-en garantía si han pasado menos días que los indicados en la garantía del taller oficial
-donde el coche tuvo alguna revisión.
+SI - Cada ciudad debe estar al menos a 5km de distancia de otra
+SI - Todas las revisiones deben tener lugar después de que el coche se matriculase.
+SI - Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
+NO - Si el coche está realizando actualmente algún viaje, dicho viaje únicamente tendrá fecha de salida, pero no de llegada.
+NO - Un coche se encontrará en todo momento bien realizando un viaje determinado o bien en una ciudad.
+NO - Si el coche ha completado al menos un viaje y no se encuentra viajando, entonces debe encontrarse en la ciudad a la que llegó en su último viaje.
+SI - Dos viajes no pueden solaparse en el tiempo, es decir, un viaje debe ocurrir siempre después de otro, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
+SI - Las ciudades de origen y destino de los viajes deben ser coherentes. Es decir, si un coche realiza un viaje desde la ciudad A hasta la ciudad B, el próximo viaje debe partir desde la ciudad B.
+NO - Como mucho, un coche se debe someter a una revisión, como máximo, en un momento
+dado (dos revisiones no pueden tener lugar a la vez). 
+
+
 
 -------------------------------------------------------------------
 Durante los primeros cuatro años desde la fecha de matriculación, un
@@ -25,6 +22,8 @@ sin importar el taller donde se realizó.
 -------------------------------------------------------------------
 
 RESTRICCIONES
-- Como mucho, un coche se debe someter a una revisión, como máximo, en un momento
-dado. (Posible invariante?)
-- Cada taller se sitúa en una ciudad, y en cada ciudad habrá, a lo sumo, un taller oficial, pudiendo haber varios talleres no oficiales.
+
+AT. DERIVADO - Un coche está en garantía si no han pasado 4 años desde que se matriculó. También está en garantía si han pasado menos días que los indicados en la garantía del taller oficial donde el coche tuvo alguna revisión.
+
+AT. DERIVADO - Los kilómetros que tiene un coche deben ser la suma de los kilómetros de los viajes que dicho coche ha completado. En nuestro sistema, no nos debemos preocupar de insertar manualmente el número de kilómetros de un coche, pues debería estar actualizado en todo momento.
+SI - Cada taller se sitúa en una ciudad, y en cada ciudad habrá, a lo sumo, un taller oficial, pudiendo haber varios talleres no oficiales.
