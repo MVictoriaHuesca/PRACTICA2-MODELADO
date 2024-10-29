@@ -17,9 +17,10 @@ end
 class Coche 
    attributes
       fechaMatriculacion : Integer -- ¿Es cuando se crea?
-      --kmRecorridos : Real derive
       diasGarantia : Integer --cuando se matricula son 400 y cada día que pasa se le resta 1. Tmbn se ponen los q diga el taller oficial al hacer una revision ahi
 
+      kmRecorridos: Real
+      necesitaMantenimiento: Boolean
       --para acceder a la ultima revision habria que mirar la fecha fin mas grande de las reparaciones que no son averias 
       --necesitaMantenimiento : Boolean derive:
       --que sea true si han pasado mas de 400 desde la matriculacion o mas de 100 de la ultima revision
@@ -39,8 +40,6 @@ class Revision
       tipo : TipoRevision
 end
 
---crear enumeracion
-
 class Taller
 end 
 
@@ -49,14 +48,6 @@ class TallerOficial < Taller
       tiempoGarantia : Integer
 end
 
-
-
-
-
--- Terminar y revisar cuando el diagrama de clases esté completo
-
--- ¿Cuando se conectan dos pares de ciudades es necesario crear dos relaciones ej: Madrid-Barcelona y Barcelona-Madrid?
--- Para que haya una conexión tiene que haber al menos dos ciudades, además una misma ciudad puede tener conexión con más ciudades (se considera un modelo con solo una ciudad)
 associationclass Conexion between   
    Ciudad [0..*] role ciudadOrigen  
    Ciudad [0..*] role ciudadDestino
@@ -125,14 +116,7 @@ context Coche
       (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or -- Está en viaje
       (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())) -- Está en ciudad
    
-   --Este atributo indica que un coche necesita mantenimiento si ha pasado más de un año (100 días) desde su última revisión de 
-   --mantenimiento o si tiene más de 400 días desde su matriculación sin ninguna revisión. Usamos ultimaRevision->isEmpty() para saber 
-   --si no ha tenido revisiones, 
-   --y Clock::now - self.ultimaRevision.fechaFin >= 100 para verificar el tiempo desde la última revisión de mantenimiento.
-   -- ESTO SERIA ATRIBUTO DERIVADO inv necesitaMantenimiento:
-   --   (Clock::now > self.fechaMatriculacion + 400) implies
-   --   (self.ultimaRevision->isEmpty() or 
-   --   (Clock::now - self.ultimaRevision.fechaFin >= 100))
+   
 
    -- Dos viajes no pueden solaparse en el tiempo, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
    inv CoherenciaViajes:    
@@ -145,24 +129,23 @@ context Coche
    inv RevisionUnica:
       self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
 
-
-context Viaje
    -- La fecha de llegada de un viaje tiene que ser posterior a la fecha de salida
    inv fechaLlegadaPosteriorFechaSalida: 
-      --self.terminado implies self.fechaSalida <= self.fechaLlegada   -- más bien sería comprobar que hay fecha de llegada y si hay fecha de llegada se comprueba que sea mayor que la de salida
-       not self.fechaLlegada.oclIsUndefined() implies self.fechaSalida <= self.fechaLlegada
+       self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined() implies v.fechaSalida <= v.fechaLlegada )
+   
+   -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ah realizado al menos un viaje
+   inv CocheCiudadUltimoViaje:
+      self.viaje->size()>0 and not self.ciudad.oclIsUndefined() implies 
+      self.ciudad = self.viaje->sortedBy(fechaLlegada)->last().ciudadViajeDestino
 
+
+context Viaje
+   
    -- Ciudad destino y origen de un viaje deben ser diferentes
    inv ViajeCiudadesDistintas:
       self.ciudadViajeOrigen <> self.ciudadViajeDestino
-   
-   -- La ciudad origen de un viaje debe ser la ciudad en la que se encuentra el coche
-   inv ViajeCiudadOrigenCoche:
-      self.coche.ciudad = self.ciudadViajeOrigen
 
    -- ES UNA PRECONDICION DE VIAJE inv ViajeCiudadOrigenEnCiudadCoche:
-       
-   
 
 context Revision
 
@@ -171,35 +154,12 @@ context Revision
       self.coche.fechaMatriculacion <= self.fechaInicio
 
    -- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
-   inv RevisionMismaCiudadCoche:
-      self.coche.ciudad = self.taller.ciudad
+   inv RevisionMismaCiudadCoche:       --!!!
+      self.fechaFin.oclIsUndefined() implies self.taller.ciudad = self.coche.ciudad 
 
-   -- Toda revisión debe tener fecha de inicio y fecha de fin
-   inv RevisionFechaInicioFin:
-      not self.fechaInicio.oclIsUndefined() and not self.fechaFin.oclIsUndefined()
-   
-   
-   
-
-
-   
-
-   
-
-
-
-
-
- 
--- Si el coche ha completado al menos un viaje y no se encuentra viajando, entonces debe encontrarse en la ciudad a la que llegó en su último viaje.
-
-
-
-
--- Dos viajes no pueden solaparse en el tiempo, es decir, un viaje debe ocurrir siempre después de otro, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
--- Las ciudades de origen y destino de los viajes deben ser coherentes. Es decir, si un coche
---    realiza un viaje desde la ciudad A hasta la ciudad B, el próximo viaje debe partir desde la
---    ciudad B.
+   -- Toda revisión debe tener fecha de inicio y fecha de fin  !!! creo que esto no hace falta
+   --inv RevisionFechaInicioFin:
+      --not self.fechaInicio.oclIsUndefined() and not self.fechaFin.oclIsUndefined()
 
 --PREGUNTAS-------------------------------------------------
 
@@ -213,3 +173,13 @@ context Revision
 --   es undefined?
 -- ¿El invariante coherenciaViajes no se modelaria como precondición para iniciar un viaje?
 -- Fecha salida y fecha llegada serían atributos derivados?
+
+
+--Este atributo indica que un coche necesita mantenimiento si ha pasado más de un año (100 días) desde su última revisión de 
+   --mantenimiento o si tiene más de 400 días desde su matriculación sin ninguna revisión. Usamos ultimaRevision->isEmpty() para saber 
+   --si no ha tenido revisiones, 
+   --y Clock::now - self.ultimaRevision.fechaFin >= 100 para verificar el tiempo desde la última revisión de mantenimiento.
+   -- ESTO SERIA ATRIBUTO DERIVADO inv necesitaMantenimiento:
+   --   (Clock::now > self.fechaMatriculacion + 400) implies
+   --   (self.ultimaRevision->isEmpty() or 
+   --   (Clock::now - self.ultimaRevision.fechaFin >= 100))
