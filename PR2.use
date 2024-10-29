@@ -19,11 +19,31 @@ class Coche
       fechaMatriculacion : Integer -- ¿Es cuando se crea?
       diasGarantia : Integer --cuando se matricula son 400 y cada día que pasa se le resta 1. Tmbn se ponen los q diga el taller oficial al hacer una revision ahi
 
-      kmRecorridos: Real
-      necesitaMantenimiento: Boolean
-      --para acceder a la ultima revision habria que mirar la fecha fin mas grande de las reparaciones que no son averias 
-      --necesitaMantenimiento : Boolean derive:
-      --que sea true si han pasado mas de 400 desde la matriculacion o mas de 100 de la ultima revision
+      kmRecorridos : Real derive: -- Suma de los kilómetros de los viajes completados
+        self.viaje->select(v | not v.fechaLlegada.oclIsUndefined())->collect(v | v.km)->sum();
+
+      necesitaMantenimiento: Boolean derive: -- Indica si el coche requiere mantenimiento según su antigüedad o la última revisión anual
+         if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then
+            false
+         else
+            let ultimaRevision: Revision = self.revision->select(r | r.tipo = TipoRevision::mantenimiento)->sortedBy(r | r.fechaFin)->last() in
+               if ultimaRevision.oclIsUndefined() then true
+               else Clock.allInstances()->any(true).NOW >= ultimaRevision.fechaFin + 100
+               endif
+         endif;
+
+      enGarantia : Boolean derive: -- Indica si el coche sigue en garantía según su antigüedad o la última revisión en un taller oficial
+         if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then
+            true
+         else
+            let ultimaRevision: Revision = self.revision->sortedBy(r | r.fechaFin)->last() in
+               if ultimaRevision.oclIsUndefined() then false
+               else 
+                  ultimaRevision.taller.oclIsTypeOf(TallerOficial) and 
+                  Clock.allInstances()->any(true).NOW <= ultimaRevision.fechaFin + 
+                  ultimaRevision.taller.oclAsType(TallerOficial).tiempoGarantia
+               endif
+         endif;
 end
 
 class Viaje
