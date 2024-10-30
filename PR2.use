@@ -151,7 +151,7 @@ context Coche
    inv fechaLlegadaPosteriorFechaSalida: 
        self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined() implies v.fechaSalida <= v.fechaLlegada )
    
-   -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ah realizado al menos un viaje
+   -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
       self.viaje->size()>0 and not self.ciudad.oclIsUndefined() implies 
       self.ciudad = self.viaje->sortedBy(fechaLlegada)->last().ciudadViajeDestino
