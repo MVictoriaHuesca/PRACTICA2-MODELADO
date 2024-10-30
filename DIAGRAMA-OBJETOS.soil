@@ -1,0 +1,96 @@
+-- Escenario1: 
+--Crear coche, 
+--introducirlo en málaga, 
+--iniciar un viaje a Granada, 
+--adelantar el reloj hasta que acabe su garantía, 
+--llevarlo a revisión
+--realizar de nuevo el viaje de vuelat a Málaga
+reset
+
+-- Inicialización del reloj
+!new Clock('clock')
+!clock.NOW := 0
+
+
+!new Ciudad('Malaga')
+!new Ciudad('Granada')
+!insert(Malaga, Granada) into Conexion  -- Conexion1
+!Conexion1.kmDistancia := 10
+
+!insert(Granada, Malaga) into Conexion  -- Conexion2
+!Conexion2.kmDistancia := 10
+
+
+!new Coche ('Coche1')
+!Coche1.fechaMatriculacion:= 0
+!insert (Coche1, Malaga) into CocheEnCiudad
+
+
+!new TallerOficial('Taller1') 
+!insert (Taller1, Granada) into TallerEnCiudad  -- Taller1
+!Taller1.tiempoGarantia := 100
+
+!new Viaje ('Viaje1')
+!Viaje1.fechaSalida := 5
+!insert (Coche1, Viaje1) into CocheViaje
+!insert (Viaje1, Malaga) into ViajeCiudadOrigen
+!insert (Viaje1, Granada) into ViajeCiudadDestino
+
+?Viaje1.km --10
+
+-- Empieza el viaje
+!delete (Coche1, Malaga) from CocheEnCiudad
+
+-- Pasa el tiempo
+!clock.NOW := 11
+
+-- Termina el viaje, el coche está en Granada
+!Viaje1.fechaLlegada := 11
+!insert (Coche1, Granada) into CocheEnCiudad
+
+-- Pasa el tiempo de garantía del coche
+!clock.NOW := 401
+?Coche1.enGarantia  --false
+
+-- Hay que llevar el coche a revisión
+!new Revision ('Revision1')
+!Revision1.fechaInicio := 101
+!Revision1.tipo := TipoRevision :: mantenimiento
+
+-- Llevamos el coche a revisión
+!insert (Coche1, Revision1) into CocheEnRevision
+!insert (Revision1, Taller1) into RevisionEnTaller
+
+-- Pasa el tiempo de la revisión
+!clock.NOW := 405
+!Revision1.fechaFin := 405
+?Coche1.enGarantia  --true
+
+-- Empezamos otro viaje de Granada a Málaga
+!new Viaje ('Viaje2')
+!Viaje2.fechaSalida := 405
+
+!insert (Coche1, Viaje2) into CocheViaje
+!insert (Viaje2, Granada) into ViajeCiudadOrigen
+!insert (Viaje2, Malaga) into ViajeCiudadDestino
+?Viaje2.km --10
+-- Empieza el viaje
+!delete (Coche1, Granada) from CocheEnCiudad
+
+-- Pasa el tiempo
+!clock.NOW := 411
+
+-- Termina el viaje, el coche está en Málaga
+!Viaje2.fechaLlegada := 411
+!insert (Coche1, Malaga) into CocheEnCiudad
+
+
+?Coche1.kmRecorridos    --20
+?Coche1.necesitaMantenimiento --false
+?Coche1.enGarantia  --true 
+
+check
+
+
+
+

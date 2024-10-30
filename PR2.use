@@ -1,14 +1,17 @@
 model coches
 
+-----------Enumerados-----------------
 enum TipoRevision {
     mantenimiento,
     reparacion
 }
+-----------Fin de enumerados----------
 
+------------Clases----------------
 class Clock
  attributes
     NOW : Integer init = 0 -- POSIX representation starting at 0
-    resolution: Integer init = 1 
+    --resolution: Integer init = 1 
 end
 
 class Ciudad
@@ -16,14 +19,12 @@ end
 
 class Coche 
    attributes
-      fechaMatriculacion : Integer -- ¿Es cuando se crea?
-      diasGarantia : Integer --cuando se matricula son 400 y cada día que pasa se le resta 1. Tmbn se ponen los q diga el taller oficial al hacer una revision ahi
-
+      fechaMatriculacion : Integer 
       kmRecorridos : Real derive: -- Suma de los kilómetros de los viajes completados
         self.viaje->select(v | not v.fechaLlegada.oclIsUndefined())->collect(v | v.km)->sum();
 
       necesitaMantenimiento: Boolean derive: -- Indica si el coche requiere mantenimiento según su antigüedad o la última revisión anual
-         if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then
+         if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then  -- 
             false
          else
             let ultimaRevision: Revision = self.revision->select(r | r.tipo = TipoRevision::mantenimiento)->sortedBy(r | r.fechaFin)->last() in
@@ -36,21 +37,28 @@ class Coche
          if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then
             true
          else
-            let ultimaRevision: Revision = self.revision->sortedBy(r | r.fechaFin)->last() in
-               if ultimaRevision.oclIsUndefined() then false
-               else 
-                  ultimaRevision.taller.oclIsTypeOf(TallerOficial) and 
-                  Clock.allInstances()->any(true).NOW <= ultimaRevision.fechaFin + 
-                  ultimaRevision.taller.oclAsType(TallerOficial).tiempoGarantia
-               endif
+            self.revision->exists(r |
+               r.taller.oclIsTypeOf(TallerOficial) and 
+               Clock.allInstances()->any(true).NOW <= r.fechaFin + r.taller.oclAsType(TallerOficial).tiempoGarantia
+            )
          endif;
+end
+
+associationclass Conexion between   
+   Ciudad [0..*] role ciudadOrigen  
+   Ciudad [0..*] role ciudadDestino
+   attributes
+      kmDistancia : Real
 end
 
 class Viaje
    attributes
       fechaSalida : Integer
       fechaLlegada : Integer
-      km : Real
+      km : Real derive:
+         let conexion : Conexion = Conexion.allInstances()->any(c | 
+            c.ciudadOrigen = self.ciudadViajeOrigen and c.ciudadDestino = self.ciudadViajeDestino)
+        in conexion.kmDistancia
 end
 
 class Revision 
@@ -67,14 +75,9 @@ class TallerOficial < Taller
    attributes
       tiempoGarantia : Integer
 end
+-------------Fin de Clases--------
 
-associationclass Conexion between   
-   Ciudad [0..*] role ciudadOrigen  
-   Ciudad [0..*] role ciudadDestino
-   attributes
-      kmDistancia : Real
-end
-
+----------Asociaciones---------------
 association CocheEnCiudad between
     Coche [0..*]   role coche      -- Una ciudad puede albergar indeterminados coches
     Ciudad [0..1]  role ciudad    -- Un coche solo puede estar en una ciudad (si no se encuentra viajando)
@@ -109,10 +112,9 @@ association RevisionEnTaller between
    Revision[*] role revision  -- Un taller puede realizar muchas revisiones
    Taller[1] role taller   -- Una revisión se realiza en un solo taller
 end
+----------Fin de Asociaciones-------------
 
-
---INVARIANTES Y RESTRICCIONES
-
+-----------Invariantes---------
 constraints
 
 context Conexion
@@ -124,7 +126,6 @@ context Conexion
    inv ConexionCiudadesDiferentes:
       self.ciudadOrigen <> self.ciudadDestino
    
-
 context Ciudad
    -- En cada ciudad habrá, a lo sumo, un taller oficial.     
    inv UnicoTallerOficial: 
@@ -135,15 +136,12 @@ context Coche
    inv cocheViajandoOEnCiudad:
       (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or -- Está en viaje
       (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())) -- Está en ciudad
-   
-   
 
    -- Dos viajes no pueden solaparse en el tiempo, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
    inv CoherenciaViajes:    
       self.viaje->sortedBy(v | v.fechaSalida)->forAll(v1, v2 |
          v1 <> v2 and v1.fechaLlegada <= v2.fechaSalida implies
          v1.ciudadViajeDestino = v2.ciudadViajeOrigen)
-
 
    -- Solo una revisión en un momento dado      !!!
    inv RevisionUnica:
@@ -167,6 +165,9 @@ context Viaje
 
    -- ES UNA PRECONDICION DE VIAJE inv ViajeCiudadOrigenEnCiudadCoche:
 
+   -- Un viaje se debe realizar entre dos ciudades conectadas ¿hace falta comprobar?
+   --inv ViajeCiudadesConectadas:
+
 context Revision
 
    --Todas las revisiones deben tener lugar después de que el coche se matriculase.
@@ -180,8 +181,10 @@ context Revision
    -- Toda revisión debe tener fecha de inicio y fecha de fin  !!! creo que esto no hace falta
    --inv RevisionFechaInicioFin:
       --not self.fechaInicio.oclIsUndefined() and not self.fechaFin.oclIsUndefined()
+-----------Fin Invariantes---------
 
---PREGUNTAS-------------------------------------------------
+
+--------------PREGUNTAS-------------------
 
 ---------------------------------------------
 --    ¿ La fecha de matriculación de un coche como se determina, es el valor del reloj cuando se crea el coche 
