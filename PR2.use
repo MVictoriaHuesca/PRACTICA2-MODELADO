@@ -20,10 +20,10 @@ end
 class Coche 
    attributes
       fechaMatriculacion : Integer 
-      kmRecorridos : Real derive: -- Suma de los kilómetros de los viajes completados
+      kmRecorridos : Real derive: 
         self.viaje->select(v | not v.fechaLlegada.oclIsUndefined())->collect(v | v.km)->sum();
 
-      necesitaMantenimiento: Boolean derive: -- Indica si el coche requiere mantenimiento según su antigüedad o la última revisión anual
+      necesitaMantenimiento: Boolean derive: 
          if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then  -- 
             false
          else
@@ -33,7 +33,7 @@ class Coche
                endif
          endif;
 
-      enGarantia : Boolean derive: -- Indica si el coche sigue en garantía según su antigüedad o la última revisión en un taller oficial
+      enGarantia : Boolean derive:
          if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then
             true
          else
@@ -77,6 +77,8 @@ class TallerOficial < Taller
 end
 -------------Fin de Clases--------
 
+
+
 ----------Asociaciones---------------
 association CocheEnCiudad between
     Coche [0..*]   role coche      -- Una ciudad puede albergar indeterminados coches
@@ -114,6 +116,8 @@ association RevisionEnTaller between
 end
 ----------Fin de Asociaciones-------------
 
+
+
 -----------Invariantes---------
 constraints
 
@@ -133,7 +137,7 @@ context Ciudad
 
 context Coche      
    -- Un coche se encontrará en todo momento bien realizando un solo viaje determinado o bien en una ciudad.   !!! 
-   inv cocheViajandoOEnCiudad:
+   inv CocheViajandoOEnCiudad:
       (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or -- Está en viaje
       (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())) -- Está en ciudad
 
