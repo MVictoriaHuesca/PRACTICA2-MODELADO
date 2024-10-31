@@ -50,7 +50,7 @@ reset
 
 -- Pasa el tiempo de garantía del coche
 !clock.NOW := 401
-?Coche1.enGarantia  --false
+?Coche1.enGarantia 
 
 -- Hay que llevar el coche a revisión
 !new Revision ('Revision1')
@@ -64,7 +64,7 @@ reset
 -- Pasa el tiempo de la revisión
 !clock.NOW := 405
 !Revision1.fechaFin := 405
-?Coche1.enGarantia  --true
+?Coche1.enGarantia  
 
 -- Empezamos otro viaje de Granada a Málaga
 !new Viaje ('Viaje2')
@@ -85,9 +85,9 @@ reset
 !insert (Coche1, Malaga) into CocheEnCiudad
 
 
-?Coche1.kmRecorridos    --20
-?Coche1.necesitaMantenimiento --false
-?Coche1.enGarantia  --true 
+?Coche1.kmRecorridos    
+?Coche1.necesitaMantenimiento 
+?Coche1.enGarantia 
 
 check
 
