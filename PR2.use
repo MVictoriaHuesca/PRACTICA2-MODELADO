@@ -146,12 +146,12 @@ context Coche
       self.viaje->sortedBy(v | v.fechaSalida)->forAll(v1, v2 |
          v1 <> v2 and v1.fechaLlegada <= v2.fechaSalida implies
          v1.ciudadViajeDestino = v2.ciudadViajeOrigen)
+      
 
    -- Solo una revisión en un momento dado  ¿sería precondición?    
    inv RevisionUnica:
       self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
    
-   -- ¿Solo un viaje en un moemnto dado, sería precondición?
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
@@ -191,8 +191,10 @@ context Revision
 --------------PREGUNTAS-------------------
 
 ---------------------------------------------
---    ¿ La fecha de matriculación de un coche como se determina, es el valor del reloj cuando se crea el coche 
---    o se introduce manualmente?
+
 --   ¿Hay que hacer invariante que compruebe que el tipo de revisión es o de mantenimiento o de reparación (es decir no
 --   es undefined?
--- ¿El invariante coherenciaViajes no se modelaria como precondición para iniciar un viaje?
+--   ¿El invariante coherenciaViajes no se modelaria como precondición para iniciar un viaje?
+--    ¿El invariante RevisionUnica no se modelaria como precondición para iniciar una revisión?
+--    ¿solo un viaje en un momento dado no se modelaria como precondición para iniciar un viaje?
+--    ¿También haría falta el invariante coherenciaRevisiones?
