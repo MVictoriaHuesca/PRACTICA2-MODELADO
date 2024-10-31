@@ -122,11 +122,11 @@ end
 constraints
 
 context Conexion
-   -- Cada ciudad debe estar al menos a 5km de distancia de otra        !!!!
+   -- Cada ciudad debe estar al menos a 5km de distancia de otra        
    inv DistanciaMinima: 
       self.kmDistancia >= 5
    
-   -- Una conexión debe ser entre 2 ciudades diferentes  !!!
+   -- Una conexión debe ser entre 2 ciudades diferentes  
    inv ConexionCiudadesDiferentes:
       self.ciudadOrigen <> self.ciudadDestino
    
@@ -136,24 +136,22 @@ context Ciudad
       self.taller->select(t | t.oclIsTypeOf(TallerOficial))->size() <= 1
 
 context Coche      
-   -- Un coche se encontrará en todo momento bien realizando un solo viaje determinado o bien en una ciudad.   !!! 
+   -- Un coche se encontrará en todo momento bien realizando un solo viaje determinado o bien en una ciudad.   
    inv CocheViajandoOEnCiudad:
-      (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or -- Está en viaje
-      (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())) -- Está en ciudad
+      (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or 
+      (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined()))
 
-   -- Dos viajes no pueden solaparse en el tiempo, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
+   -- Dos viajes de un coche no pueden solaparse en el tiempo, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
    inv CoherenciaViajes:    
       self.viaje->sortedBy(v | v.fechaSalida)->forAll(v1, v2 |
          v1 <> v2 and v1.fechaLlegada <= v2.fechaSalida implies
          v1.ciudadViajeDestino = v2.ciudadViajeOrigen)
 
-   -- Solo una revisión en un momento dado      !!!
+   -- Solo una revisión en un momento dado  ¿sería precondición?    
    inv RevisionUnica:
       self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
-
-   -- La fecha de llegada de un viaje tiene que ser posterior a la fecha de salida
-   inv fechaLlegadaPosteriorFechaSalida: 
-       self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined() implies v.fechaSalida <= v.fechaLlegada )
+   
+   -- ¿Solo un viaje en un moemnto dado, sería precondición?
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
@@ -167,10 +165,10 @@ context Viaje
    inv ViajeCiudadesDistintas:
       self.ciudadViajeOrigen <> self.ciudadViajeDestino
 
-   -- ES UNA PRECONDICION DE VIAJE inv ViajeCiudadOrigenEnCiudadCoche:
+   -- La fecha de llegada de un viaje debe ser posterior a la de salida
+   inv FechaLlegadaPosteriorFechaSalida:
+      not self.fechaLlegada.oclIsUndefined() implies self.fechaLlegada > self.fechaSalida
 
-   -- Un viaje se debe realizar entre dos ciudades conectadas ¿hace falta comprobar?
-   --inv ViajeCiudadesConectadas:
 
 context Revision
 
@@ -179,12 +177,14 @@ context Revision
       self.coche.fechaMatriculacion <= self.fechaInicio
 
    -- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
-   inv RevisionMismaCiudadCoche:       --!!!
+   inv RevisionMismaCiudadCoche:      
       self.fechaFin.oclIsUndefined() implies self.taller.ciudad = self.coche.ciudad 
 
-   -- Toda revisión debe tener fecha de inicio y fecha de fin  !!! creo que esto no hace falta
-   --inv RevisionFechaInicioFin:
-      --not self.fechaInicio.oclIsUndefined() and not self.fechaFin.oclIsUndefined()
+   -- ¿la fecha de inicio de una revisión debe ser anterior a la de fin?
+   inv FechaInicioAntesFechaFin:
+      not self.fechaFin.oclIsUndefined() implies self.fechaInicio <= self.fechaFin
+
+
 -----------Fin Invariantes---------
 
 
@@ -193,20 +193,6 @@ context Revision
 ---------------------------------------------
 --    ¿ La fecha de matriculación de un coche como se determina, es el valor del reloj cuando se crea el coche 
 --    o se introduce manualmente?
---   ¿Tenemos que comprobar también que la fecha de inicio de una revisión sea anterior a la de fin?
---    Un viaje y una revisión no pueden ocurrir a la vez (o si?), habría que compobar que para que empezar a hacer un
---   viaje no esté en revisión (no se si esto entra en el apartado a, puede que sea algo que se modele en el comportamiento después)
 --   ¿Hay que hacer invariante que compruebe que el tipo de revisión es o de mantenimiento o de reparación (es decir no
 --   es undefined?
 -- ¿El invariante coherenciaViajes no se modelaria como precondición para iniciar un viaje?
--- Fecha salida y fecha llegada serían atributos derivados?
-
-
---Este atributo indica que un coche necesita mantenimiento si ha pasado más de un año (100 días) desde su última revisión de 
-   --mantenimiento o si tiene más de 400 días desde su matriculación sin ninguna revisión. Usamos ultimaRevision->isEmpty() para saber 
-   --si no ha tenido revisiones, 
-   --y Clock::now - self.ultimaRevision.fechaFin >= 100 para verificar el tiempo desde la última revisión de mantenimiento.
-   -- ESTO SERIA ATRIBUTO DERIVADO inv necesitaMantenimiento:
-   --   (Clock::now > self.fechaMatriculacion + 400) implies
-   --   (self.ultimaRevision->isEmpty() or 
-   --   (Clock::now - self.ultimaRevision.fechaFin >= 100))
