@@ -1,0 +1,202 @@
+model coches
+
+-----------Enumerados-----------------
+enum TipoRevision {
+    mantenimiento,
+    reparacion
+}
+-----------Fin de enumerados----------
+
+------------Clases----------------
+class Clock
+ attributes
+    NOW : Integer init = 0 -- Representa el día actual en formato entero, comenzando desde el día 0.
+    
+ operations
+    -- Avanza un día en el sistema.
+    op tic()
+      begin
+         NOW := NOW + 1;
+      end
+end
+
+class Ciudad
+end
+
+class Coche 
+   attributes
+      fechaMatriculacion : Integer -- Fecha de matriculación del coche.
+      
+      -- Kilómetros totales recorridos por el coche, calculados sumando los kilómetros de todos sus viajes completados.
+      kmRecorridos : Real derive: 
+         self.viaje->select(v | not v.fechaLlegada.oclIsUndefined())->collect(v | v.km)->sum();
+
+      -- Indica si el coche necesita mantenimiento.
+      -- No necesita mantenimiento en los primeros 4 años desde la fecha de matriculación;
+      -- luego, necesita mantenimiento cada año desde la última revisión.
+      necesitaMantenimiento: Boolean derive: 
+         if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then  
+            false
+         else
+            let ultimaRevision: Revision = self.revision->select(r | r.tipo = TipoRevision::mantenimiento)->sortedBy(r | r.fechaFin)->last() in
+               if ultimaRevision.oclIsUndefined() then true
+               else Clock.allInstances()->any(true).NOW >= ultimaRevision.fechaFin + 100
+               endif
+         endif;
+
+      -- Determina si el coche está en garantía, considerando la fecha de matriculación y la última revisión en un taller oficial.
+      enGarantia : Boolean derive:
+         if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then
+            true
+         else
+            self.revision->exists(r |
+               r.taller.oclIsTypeOf(TallerOficial) and 
+               Clock.allInstances()->any(true).NOW <= r.fechaFin + r.taller.oclAsType(TallerOficial).tiempoGarantia
+            )
+         endif;
+      
+      velocidad : Real -- Velocidad del coche en km/día, especificada en cada instancia de coche.
+
+   operations
+      -- Inicia un viaje desde la ciudad actual del coche.
+      -- Parámetro: viaje - el viaje que realizará el coche.
+      op comenzarViaje(viaje: Viaje)
+      pre: not self.ciudad.oclIsUndefined() and viaje.fechaSalida.oclIsUndefined() -- Precondición: el coche debe estar en una ciudad y el viaje no haber iniciado.
+      post: self.viaje = viaje and viaje.fechaSalida = Clock.allInstances()->any(true).NOW -- Postcondición: el coche empieza el viaje, y la fecha de salida es el día actual.
+
+      -- Avanza el viaje en curso según la velocidad del coche.
+      op avanzar()
+      pre: self.viaje->exists(v | v.fechaLlegada.oclIsUndefined()) -- Precondición: el coche debe estar realizando un viaje, es decir, no debe tener fecha de llegada.
+      post: let viajeActual : Viaje = self.viaje->any(v | v.fechaLlegada.oclIsUndefined()) in
+            viajeActual.km = @pre(viajeActual.km) + self.velocidad -- Postcondición: incrementa los km realizados en el viaje actual según la velocidad del coche.
+
+end
+
+associationclass Conexion between   
+   Ciudad [0..*] role ciudadOrigen  
+   Ciudad [0..*] role ciudadDestino
+   attributes
+      kmDistancia : Real -- Representa la distancia en km entre dos ciudades.
+end
+
+class Viaje
+   attributes
+      fechaSalida : Integer -- Día en que el viaje comienza.
+      fechaLlegada : Integer -- Día en que el viaje finaliza.
+      
+      -- Calcula la distancia del viaje basándose en la distancia de la conexión entre las ciudades de origen y destino.
+      km : Real derive:
+         let conexion : Conexion = Conexion.allInstances()->any(c | 
+            c.ciudadOrigen = self.ciudadViajeOrigen and c.ciudadDestino = self.ciudadViajeDestino)
+        in conexion.kmDistancia
+end
+
+class Revision 
+   attributes
+      fechaInicio : Integer -- Día en que se inicia la revisión.
+      fechaFin : Integer -- Día en que la revisión finaliza.
+      tipo : TipoRevision -- Tipo de la revisión, puede ser mantenimiento o reparación.
+end
+
+class Taller
+end 
+
+class TallerOficial < Taller
+   attributes
+      tiempoGarantia : Integer -- Duración en días de la garantía para revisiones realizadas en el taller.
+end
+-------------Fin de Clases--------
+
+----------Asociaciones---------------
+association CocheEnCiudad between
+    Coche [0..*] role coche      -- Una ciudad puede albergar varios coches.
+    Ciudad [0..1] role ciudad    -- Un coche solo puede estar en una ciudad o estar en viaje.
+end
+
+association ViajeCiudadOrigen between 
+   Viaje[0..*] role viajeOrigen  -- Una ciudad puede ser origen de múltiples viajes.
+   Ciudad [1] role ciudadViajeOrigen  -- Un viaje siempre tiene una ciudad de origen.
+end
+
+association ViajeCiudadDestino between 
+   Viaje[0..*] role viajeDestino -- Una ciudad puede ser destino de múltiples viajes.
+   Ciudad [1] role ciudadViajeDestino -- Un viaje siempre tiene una ciudad de destino.
+end 
+
+association CocheViaje between
+   Coche[1] role coche  -- Cada viaje es realizado por un coche.
+   Viaje [0..*] role viaje   -- Un coche puede haber realizado varios viajes.
+end
+
+association TallerEnCiudad between
+   Taller[0..*] role taller -- Una ciudad puede albergar varios talleres.
+   Ciudad[1] role ciudad -- Un taller se encuentra en una ciudad específica.
+end
+
+association CocheEnRevision between 
+   Coche[1] role coche -- Cada revisión se realiza sobre un solo coche.
+   Revision[0..*] role revision -- Un coche puede haber tenido varias revisiones.
+end
+
+association RevisionEnTaller between
+   Revision[*] role revision  -- Un taller puede realizar múltiples revisiones.
+   Taller[1] role taller   -- Cada revisión se realiza en un único taller.
+end
+----------Fin de Asociaciones-------------
+
+-----------Invariantes---------
+constraints
+
+context Conexion
+   -- Cada ciudad debe estar al menos a 5 km de otra ciudad.
+   inv DistanciaMinima: 
+      self.kmDistancia >= 5
+   
+   -- Una conexión debe ser entre dos ciudades diferentes.
+   inv ConexionCiudadesDiferentes:
+      self.ciudadOrigen <> self.ciudadDestino
+   
+context Ciudad
+   -- En cada ciudad habrá, como máximo, un taller oficial.
+   inv UnicoTallerOficial: 
+      self.taller->select(t | t.oclIsTypeOf(TallerOficial))->size() <= 1
+
+context Coche      
+   -- Un coche debe estar o bien realizando un viaje o bien en una ciudad.
+   inv CocheViajandoOEnCiudad:
+      (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or 
+      (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())) 
+
+   -- Dos viajes no pueden solaparse en el tiempo; deben ser secuenciales.
+   inv CoherenciaViajes:    
+      self.viaje->sortedBy(v | v.fechaSalida)->forAll(v1, v2 |
+         v1 <> v2 and v1.fechaLlegada <= v2.fechaSalida implies
+         v1.ciudadViajeDestino = v2.ciudadViajeOrigen)
+
+   -- Solo puede haber una revisión en curso a la vez para un coche.
+   inv RevisionUnica:
+      self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
+
+   -- La fecha de llegada de un viaje debe ser posterior o igual a la fecha de salida.
+   inv fechaLlegadaPosteriorFechaSalida: 
+       self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined() implies v.fechaSalida <= v.fechaLlegada )
+   
+   -- Si el coche ha realizado al menos un viaje y no está viajando, debe estar en la ciudad de su último destino.
+   inv CocheCiudadUltimoViaje:
+      self.viaje->size()>0 and not self.ciudad.oclIsUndefined() implies 
+      self.ciudad = self.viaje->sortedBy(fechaLlegada)->last().ciudadViajeDestino
+
+
+context Viaje
+   -- Las ciudades de origen y destino de un viaje deben ser distintas.
+   inv ViajeCiudadesDistintas:
+      self.ciudadViajeOrigen <> self.ciudadViajeDestino
+
+context Revision
+   -- Todas las revisiones deben ocurrir después de la fecha de matriculación del coche.
+   inv RevisionPosteriorAMatriculacion: 
+      self.coche.fechaMatriculacion <= self.fechaInicio
+
+   -- Si el coche está en revisión, debe encontrarse en la misma ciudad que el taller.
+   inv RevisionMismaCiudadCoche:       
+      self.fechaFin.oclIs
