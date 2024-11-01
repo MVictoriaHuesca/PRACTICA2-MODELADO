@@ -67,7 +67,7 @@ class Coche < ActiveObject
             )
          endif;
 
-    operations
+   operations
       comenzarViaje(origen: Ciudad, destino:Ciudad) --Esta operación debe recibir como parámetro el recorrido entre dos ciudades que debe realizar en su viaje.
         begin
             declare viaje:Viaje;
@@ -89,19 +89,26 @@ class Coche < ActiveObject
       avanzar()
          begin
             if self.isMoving then
-               declare viajeActual:Viaje;
-               viajeActual := self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->any(true)
-               viajeActual.kmRecorridos := viajeActual.kmRecorridos + self.velocidad;
-               if viajeActual.kmRecorridos >= viajeActual.km then --si ya ha llegado al destino
-                  self.isMoving := false
-                  viajeActual.fechaLlegada := Clock.allInstances()->any(true).NOW
-                  insert(self, viajeActual.ciudadViajeDestino) into CocheEnCiudad
+               let viajeActual:Viaje = self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->any(true) in
+                  viajeActual.kmRecorridos := viajeActual.kmRecorridos + self.velocidad;
+                  if viajeActual.kmRecorridos >= viajeActual.km then --si ya ha llegado al destino
+                     self.isMoving := false;
+                     viajeActual.kmRecorridos := viajeActual.km;
+                  -- añado eso para q dsps no salga q ha recorrido mas de los que hay de distancia
+                     viajeActual.fechaLlegada := Clock.allInstances()->any(true).NOW;
+                     insert(self, viajeActual.ciudadViajeDestino) into CocheEnCiudad
+                  end;
                end;
             end;
          end
-         pre RealizandoViaje : self.isMoving
-         post SeHaMovido : self.kmRecorridos = @pre(self.kmRecorridos) + self.velocidad
+         --pre RealizandoViaje : self.isMoving (lo comprueba el if, podemos dejarlo aquí o en el if, como querais. Si lo dejamos así como está nos ahorramos de que salga error si ponemos avanzar a uno q no se este moviendo)
          post ViajeTerminado : not self.isMoving implies self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())
+         --post SeHaMovido : self.kmRecorridos = @pre(self.kmRecorridos) + self.velocidad 
+         post MovimientoCorrecto : 
+            self.isMoving implies
+               let viajeActual: Viaje = self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->any(true) in
+                  viajeActual.kmRecorridos = viajeActual.kmRecorridos@pre + self.velocidad;
+               end
 end
 
 associationclass Conexion between   
