@@ -214,7 +214,7 @@ context Coche
          --v1.ciudadViajeDestino = v2.ciudadViajeOrigen)
       
 
-   -- Solo una revisión en un momento dado  ¿sería precondición?    
+   -- Solo una revisión en un momento dado  
    inv RevisionUnica:
       self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
    
