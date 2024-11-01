@@ -216,16 +216,20 @@ context Coche
 
    -- Solo una revisión en un momento dado  
    inv RevisionUnica:
-      self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
+      self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->size() <= 1
    
    --AÑADIR COHERENCIA REVISIONES
-   inv CoherenciaRevisiones: 
+   --inv CoherenciaRevisiones: 
       
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
       self.viaje->size()>0 and not self.ciudad.oclIsUndefined() implies 
       self.ciudad = self.viaje->sortedBy(fechaLlegada)->last().ciudadViajeDestino
+
+   -- Cocche en misma ciudad que taller si está en revisión
+   inv CocheEnRevisionMismaCiudadTaller:
+      self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->first() <> null implies self.ciudad = self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->first().taller.ciudad
 
 
 context Viaje
@@ -245,18 +249,10 @@ context Revision
    inv RevisionPosteriorAMatriculacion: 
       self.coche.fechaMatriculacion <= self.fechaInicio
 
-   -- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
-   inv RevisionMismaCiudadCoche:      
-      self.fechaFin.oclIsUndefined() implies self.taller.ciudad = self.coche.ciudad 
 
-   -- ¿la fecha de inicio de una revisión debe ser anterior a la de fin?
+   -- La fecha de inicio de una revisión debe ser anterior a la de fin
    inv FechaInicioAntesFechaFin:
-      not self.fechaFin.oclIsUndefined() implies self.fechaInicio <= self.fechaFin
+      self.fechaInicio <= self.fechaFin
 
 
 -----------Fin Invariantes---------
-
-
---------------PREGUNTAS-------------------
-
---------------------------------------------
