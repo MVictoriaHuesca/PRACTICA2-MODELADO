@@ -219,6 +219,8 @@ context Coche
       self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
    
    --AÑADIR COHERENCIA REVISIONES
+   inv CoherenciaRevisiones: 
+      
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
