@@ -73,10 +73,10 @@ class Coche < ActiveObject
             declare viaje:Viaje;
             delete (self, self.ciudad) from CocheEnCiudad;
             viaje := new Viaje;
-            viaje.fechaInicio := Clock.allInstances()->any(true).NOW;
+            viaje.fechaSalida := Clock.allInstances()->any(true).NOW;
             insert(self, viaje) into CocheViaje;
-            insert(origen, viaje) into ViajeCiudadOrigen;
-            insert(destino, viaje) into ViajeCiudadDestino;
+            insert(viaje, origen) into ViajeCiudadOrigen;
+            insert(viaje, destino) into ViajeCiudadDestino;
             self.isMoving := true;
         end 
         pre CiudadesDiferentes : origen <> destino
@@ -84,31 +84,34 @@ class Coche < ActiveObject
         pre NoEstaEnRevision : self.revision->forAll(r | r.fechaFin <= Clock.allInstances()->any(true).NOW)
         pre ViajeEntreCiuadesConectadas : Conexion.allInstances()->exists(c | c.ciudadOrigen = origen and c.ciudadDestino = destino)
         pre CocheEnCiudadOrigen : self.ciudad = origen
-        post ViajeIniciado : self.isMoving
+        post SeEstaMoviendo:  self.isMoving
 
       avanzar()
          begin
             if self.isMoving then
-               let viajeActual:Viaje = self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->any(true) in
-                  viajeActual.kmRecorridos := viajeActual.kmRecorridos + self.velocidad;
+               declare viajeActual: Viaje;
+               viajeActual := self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->any(true);
+               viajeActual.kmRecorridos := viajeActual.kmRecorridos + self.velocidad;
                   if viajeActual.kmRecorridos >= viajeActual.km then --si ya ha llegado al destino
                      self.isMoving := false;
                      viajeActual.kmRecorridos := viajeActual.km;
-                  -- añado eso para q dsps no salga q ha recorrido mas de los que hay de distancia
+                     -- añado eso para q dsps no salga q ha recorrido mas de los que hay de distancia
                      viajeActual.fechaLlegada := Clock.allInstances()->any(true).NOW;
-                     insert(self, viajeActual.ciudadViajeDestino) into CocheEnCiudad
+                     insert(self, viajeActual.ciudadViajeDestino) into CocheEnCiudad;
                   end;
-               end;
             end;
          end
          --pre RealizandoViaje : self.isMoving (lo comprueba el if, podemos dejarlo aquí o en el if, como querais. Si lo dejamos así como está nos ahorramos de que salga error si ponemos avanzar a uno q no se este moviendo)
          post ViajeTerminado : not self.isMoving implies self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())
-         --post SeHaMovido : self.kmRecorridos = @pre(self.kmRecorridos) + self.velocidad 
-         post MovimientoCorrecto : 
-            self.isMoving implies
-               let viajeActual: Viaje = self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->any(true) in
-                  viajeActual.kmRecorridos = viajeActual.kmRecorridos@pre + self.velocidad;
-               end
+         post MovimientoCorrecto : self.isMoving@pre implies self.kmRecorridos = self.kmRecorridos@pre + self.velocidad
+      
+      tick()
+         begin
+            if self.isMoving then
+               self.avanzar();
+            end;
+         end
+
 end
 
 associationclass Conexion between   
@@ -122,7 +125,7 @@ class Viaje
    attributes
       fechaSalida : Integer
       fechaLlegada : Integer
-      kmRecorridos: Integer init: 0 --Añadido
+      kmRecorridos: Real init: 0 --Añadido
       km : Real derive:
          let conexion : Conexion = Conexion.allInstances()->any(c | 
             c.ciudadOrigen = self.ciudadViajeOrigen and c.ciudadDestino = self.ciudadViajeDestino)
@@ -236,7 +239,7 @@ context Coche
 
    -- Cocche en misma ciudad que taller si está en revisión
    inv CocheEnRevisionMismaCiudadTaller:
-      self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->first() <> null implies self.ciudad = self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->first().taller.ciudad
+      self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->asOrderedSet()->first() <> null implies self.ciudad = self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->asOrderedSet()->first().taller.ciudad
 
 
 context Viaje
