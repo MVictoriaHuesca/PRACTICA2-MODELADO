@@ -1,6 +1,6 @@
 -- Inicialización del reloj
 !new Clock('clock')
-!clock.NOW := 0
+-- !clock.NOW := 0 se inicializa solo
 
 -- Creamos las 3 ciudades
 !new Ciudad('Malaga')
@@ -13,12 +13,12 @@
 
 -- Creamos la conexión entre Sevilla y Granada con 250 km de distancia
 !insert(Sevilla, Granada) into Conexion  -- Conexion2
-!Conexion1.kmDistancia := 250
+!Conexion2.kmDistancia := 250
 
 -- Creamos el coche matriculado en el día 0 y que viaja a una velocidad de 27
 !new Coche ('Coche1')
-!Coche1.fechaMatriculacion: =0
-!Coche1.velocidad: =27
+!Coche1.fechaMatriculacion := 0
+!Coche1.velocidad := 27
 
 -- Escenario 1: Estado inicial en el instante 0
 -- El coche está en Málaga y aún no ha comenzado ningún viaje
