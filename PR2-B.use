@@ -17,7 +17,7 @@ class Clock
       begin
         self.NOW := self.NOW + self.resolution;
         for o in self.ao do
-          o.avanzar()
+          o.tick()
         end;
       end
       post TimePasses: self.NOW = self.NOW@pre + self.resolution
@@ -25,15 +25,15 @@ class Clock
       begin
         for i in Sequence{1..n} do
           self.tick()
-        end;
+        end
       end
    constraints
     inv PositiveResolution: self.resolution > 0
 end
 
-abstract class ActiveObject
+abstract class ActiveObject -- real-time objects 
    operations
-      avanzar() begin end 
+      tick() begin end 
 end
 
 class Ciudad
@@ -45,8 +45,12 @@ class Coche < ActiveObject
       velocidad : Real
       isMoving : Boolean init: false
       kmRecorridos : Real derive: 
-        self.viaje->select(v | not v.fechaLlegada.oclIsUndefined())->collect(v | v.km)->sum();
-
+         if isMoving then
+            self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->collect(v | v.kmRecorridos)->sum()
+         else
+            0
+         endif;
+         
       necesitaMantenimiento: Boolean derive: 
          if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then  -- 
             false
@@ -82,7 +86,7 @@ class Coche < ActiveObject
         pre CiudadesDiferentes : origen <> destino
         pre UnUnicoViaje : not self.isMoving
         pre NoEstaEnRevision : self.revision->forAll(r | r.fechaFin <= Clock.allInstances()->any(true).NOW)
-        pre ViajeEntreCiuadesConectadas : Conexion.allInstances()->exists(c | c.ciudadOrigen = origen and c.ciudadDestino = destino)
+        pre ViajeEntreCiudadesConectadas : Conexion.allInstances()->exists(c | c.ciudadOrigen = origen and c.ciudadDestino = destino)
         pre CocheEnCiudadOrigen : self.ciudad = origen
         post SeEstaMoviendo:  self.isMoving
 
@@ -90,7 +94,7 @@ class Coche < ActiveObject
          begin
             if self.isMoving then
                declare viajeActual: Viaje;
-               viajeActual := self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->any(true);
+               viajeActual := self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->asSequence()->first();
                viajeActual.kmRecorridos := viajeActual.kmRecorridos + self.velocidad;
                   if viajeActual.kmRecorridos >= viajeActual.km then --si ya ha llegado al destino
                      self.isMoving := false;
@@ -101,15 +105,12 @@ class Coche < ActiveObject
                   end;
             end;
          end
-         --pre RealizandoViaje : self.isMoving (lo comprueba el if, podemos dejarlo aquí o en el if, como querais. Si lo dejamos así como está nos ahorramos de que salga error si ponemos avanzar a uno q no se este moviendo)
-         post ViajeTerminado : not self.isMoving implies self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined())
-         post MovimientoCorrecto : self.isMoving@pre implies self.kmRecorridos = self.kmRecorridos@pre + self.velocidad
+         post ViajeTerminado : not self.isMoving implies self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined() and v.kmRecorridos = v.km)
+         post MovimientoCorrecto : self.isMoving implies self.kmRecorridos = self.kmRecorridos@pre + self.velocidad --o q haya llegado al destino
       
       tick()
          begin
-            if self.isMoving then
-               self.avanzar();
-            end;
+            self.avanzar();
          end
 
 end
@@ -215,22 +216,15 @@ context Coche
    -- Un coche se encontrará en todo momento bien realizando un solo viaje determinado o bien en una ciudad.   
    inv CocheViajandoOEnCiudad:
       (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or 
-      (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined()))
-
-   -- Dos viajes de un coche no pueden solaparse en el tiempo, pudiendo la fecha de llegada de un viaje coincidir con la fecha de salida del siguiente.
-   --inv CoherenciaViajes:    --ESTO ES PRECONDICIÓN
-      --self.viaje->sortedBy(v | v.fechaSalida)->forAll(v1, v2 |
-         --v1 <> v2 and v1.fechaLlegada <= v2.fechaSalida implies
-         --v1.ciudadViajeDestino = v2.ciudadViajeOrigen)
-      
+      (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined()))      
 
    -- Solo una revisión en un momento dado  
    inv RevisionUnica:
       self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->size() <= 1
    
-   --AÑADIR COHERENCIA REVISIONES
-   --inv CoherenciaRevisiones: 
-      
+   -- Las revisiones no pueden solaparse en el tiempo !!!
+   inv CoherenciaRevisiones: 
+      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 implies v1.fechaInicio <= v2.fechaFin)
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
@@ -243,10 +237,6 @@ context Coche
 
 
 context Viaje
-   
-   -- Ciudad destino y origen de un viaje deben ser diferentes
-   --inv ViajeCiudadesDistintas:
-      --self.ciudadViajeOrigen <> self.ciudadViajeDestino
 
    -- La fecha de llegada de un viaje debe ser posterior a la de salida
    inv FechaLlegadaPosteriorFechaSalida:
@@ -254,7 +244,6 @@ context Viaje
 
 
 context Revision
-
    --Todas las revisiones deben tener lugar después de que el coche se matriculase.
    inv RevisionPosteriorAMatriculacion: 
       self.coche.fechaMatriculacion <= self.fechaInicio
