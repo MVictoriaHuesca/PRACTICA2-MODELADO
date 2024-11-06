@@ -45,6 +45,9 @@ class Coche < ActiveObject
       velocidad : Real
       isMoving : Boolean init: false
       kmRecorridos : Real derive: 
+        self.viaje->select(v | not v.fechaLlegada.oclIsUndefined())->collect(v | v.km)->sum();
+
+      kmRecorridosViajeActual : Real derive:
          if isMoving then
             self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->collect(v | v.kmRecorridos)->sum()
          else
@@ -106,7 +109,7 @@ class Coche < ActiveObject
             end;
          end
          post ViajeTerminado : not self.isMoving implies self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined() and v.kmRecorridos = v.km)
-         post MovimientoCorrecto : self.isMoving implies self.kmRecorridos = self.kmRecorridos@pre + self.velocidad --o q haya llegado al destino
+         post MovimientoCorrecto : self.isMoving implies self.kmRecorridosViajeActual = self.kmRecorridosViajeActual@pre + self.velocidad --o q haya llegado al destino
       
       tick()
          begin
@@ -224,7 +227,7 @@ context Coche
    
    -- Las revisiones no pueden solaparse en el tiempo !!!
    inv CoherenciaRevisiones: 
-      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 implies v1.fechaInicio <= v2.fechaFin)
+      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 implies r1.fechaInicio <= r2.fechaFin)
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:

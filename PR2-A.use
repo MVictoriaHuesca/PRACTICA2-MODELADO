@@ -11,13 +11,13 @@ enum TipoRevision {
 class Clock
  attributes
     NOW : Integer init = 0 -- POSIX representation starting at 0
-    --resolution: Integer init = 1 
+    resolution: Integer init = 1 
 end
 
 class Ciudad
 end
 
-class Coche 
+class Coche
    attributes
       fechaMatriculacion : Integer 
       kmRecorridos : Real derive: 
@@ -152,6 +152,11 @@ context Coche
       self.viaje->size()>0 and not self.ciudad.oclIsUndefined() implies 
       self.ciudad = self.viaje->sortedBy(fechaLlegada)->last().ciudadViajeDestino
 
+
+   -- Las revisiones no pueden solaparse en el tiempo !!!
+   inv CoherenciaRevisiones: 
+      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 implies r1.fechaInicio <= r2.fechaFin)
+   
 
 context Viaje
    
