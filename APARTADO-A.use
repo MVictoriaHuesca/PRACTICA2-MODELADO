@@ -178,7 +178,7 @@ context Revision
 
    -- ¿la fecha de inicio de una revisión debe ser anterior a la de fin?
    inv FechaInicioAntesFechaFin:
-      not self.fechaFin.oclIsUndefined() implies self.fechaInicio <= self.fechaFin
+      not self.fechaFin.oclIsUndefined() implies self.fechaInicio < self.fechaFin
 
 
 -----------Fin Invariantes---------
