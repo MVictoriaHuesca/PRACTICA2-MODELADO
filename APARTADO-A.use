@@ -141,17 +141,14 @@ context Coche
       (self.ciudad.oclIsUndefined() and self.viaje->select(v | v.fechaLlegada.oclIsUndefined())->size() = 1) or 
       (not self.ciudad.oclIsUndefined() and self.viaje->forAll(v | not v.fechaLlegada.oclIsUndefined()))
 
-
    -- Solo una revisión en un momento dado  ¿sería precondición?    
    inv RevisionUnica:
       self.revision->select(r | r.fechaFin.oclIsUndefined())->size() <= 1
-   
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
       self.viaje->size()>0 and not self.ciudad.oclIsUndefined() implies 
       self.ciudad = self.viaje->sortedBy(fechaLlegada)->last().ciudadViajeDestino
-
 
    -- Las revisiones no pueden solaparse en el tiempo !!!
    inv CoherenciaRevisiones: 

@@ -1,0 +1,57 @@
+reset
+
+-- Inicialización del reloj
+!new Clock('clock')
+-- !clock.NOW := 0 se inicializa solo
+
+-- Creamos las 3 ciudades
+!new Ciudad('Malaga')
+!new Ciudad('Sevilla')
+!new Ciudad('Granada')
+
+-- Creamos la conexión entre Málaga y Sevilla con 210 km de distancia
+!insert(Malaga, Sevilla) into Conexion  -- Conexion1
+!Conexion1.kmDistancia := 210
+
+-- Creamos la conexión entre Sevilla y Granada con 250 km de distancia
+!insert(Sevilla, Granada) into Conexion  -- Conexion2
+!Conexion2.kmDistancia := 250
+
+-- Creamos el coche matriculado en el día 0 y que viaja a una velocidad de 27
+!new Coche('Coche1')
+!Coche1.fechaMatriculacion := 0
+!Coche1.velocidad := 27
+
+!insert(clock, Coche1) into Time
+
+-- Escenario 1: Estado inicial en el instante 0
+-- El coche está en Málaga y aún no ha comenzado ningún viaje
+!insert(Coche1, Malaga) into CocheEnCiudad
+-- Avanzar el tiempo hasta el día 5, momento en que comienza el primer viaje
+?Coche1.isMoving    --false
+!clock.run(5)
+?Coche1.isMoving    --false
+-- Escenario 2: El coche comienza su primer viaje de Málaga a Sevilla en el día 5
+!Coche1.comenzarViaje(Malaga, Sevilla) -- Comienza el viaje de Málaga a Sevilla
+?Coche1.isMoving 
+-- Avanzar el tiempo día a día hasta que el coche complete el primer viaje
+
+!clock.run(8)
+?Coche1.isMoving 
+?Coche1.viaje
+?Viaje1.fechaLlegada
+?Viaje1.kmRecorridos
+
+-- Escenario 3: El coche llega a Sevilla (fecha de llegada registrada automáticamente en avanzar)
+-- Mismo día: el coche inicia el viaje de Sevilla a Granada
+
+!Coche1.comenzarViaje(Sevilla, Granada) -- Comienza el viaje de Sevilla a Granada
+
+-- Avanzar el tiempo día a día hasta que el coche complete el segundo viaje
+!clock.run(10)
+
+-- Escenario 4: El coche llega a Granada y la simulación termina.
+
+--Cuando el coche llega a Granada, la simulación termina. fechaLlegada para el viaje a Granada se registra, y el coche queda en Granada.
+check
+

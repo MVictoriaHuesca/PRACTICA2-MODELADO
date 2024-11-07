@@ -227,19 +227,19 @@ context Coche
    
    -- Las revisiones no pueden solaparse en el tiempo !!!
    inv CoherenciaRevisiones: 
-      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 implies r1.fechaInicio <= r2.fechaFin)
+      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 and r1.fechaInicio < r2.fechaInicio implies (r1.fechaFin < r2.fechaInicio))
    
    -- Un coche debe estar en la ciudad en la que acabó su último viaje si no está viajando y ha realizado al menos un viaje
    inv CocheCiudadUltimoViaje:
       self.viaje->size()>0 and not self.ciudad.oclIsUndefined() implies 
       self.ciudad = self.viaje->sortedBy(fechaLlegada)->last().ciudadViajeDestino
 
-   -- Cocche en misma ciudad que taller si está en revisión
-   inv CocheEnRevisionMismaCiudadTaller:
-      self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->asOrderedSet()->first() <> null implies self.ciudad = self.revision->select(r | r.fechaFin >= Clock.allInstances()->any(true).NOW)->asOrderedSet()->first().taller.ciudad
-
 
 context Viaje
+
+   -- Ciudad destino y origen de un viaje deben ser diferentes
+   inv ViajeCiudadesDistintas:
+      self.ciudadViajeOrigen <> self.ciudadViajeDestino
 
    -- La fecha de llegada de un viaje debe ser posterior a la de salida
    inv FechaLlegadaPosteriorFechaSalida:
@@ -251,10 +251,13 @@ context Revision
    inv RevisionPosteriorAMatriculacion: 
       self.coche.fechaMatriculacion <= self.fechaInicio
 
+   -- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
+   inv RevisionMismaCiudadCoche:      
+      self.fechaFin.oclIsUndefined() implies self.taller.ciudad = self.coche.ciudad 
 
-   -- La fecha de inicio de una revisión debe ser anterior a la de fin
+   -- ¿la fecha de inicio de una revisión debe ser anterior a la de fin?
    inv FechaInicioAntesFechaFin:
-      self.fechaInicio <= self.fechaFin
+      not self.fechaFin.oclIsUndefined() implies self.fechaInicio <= self.fechaFin
 
 
 -----------Fin Invariantes---------
