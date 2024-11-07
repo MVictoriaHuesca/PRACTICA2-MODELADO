@@ -249,7 +249,7 @@ context Viaje
 context Revision
    --Todas las revisiones deben tener lugar después de que el coche se matriculase.
    inv RevisionPosteriorAMatriculacion: 
-      self.coche.fechaMatriculacion <= self.fechaInicio
+      self.coche.fechaMatriculacion < self.fechaInicio
 
    -- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
    inv RevisionMismaCiudadCoche:      

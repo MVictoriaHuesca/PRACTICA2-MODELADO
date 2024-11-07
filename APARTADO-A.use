@@ -170,7 +170,7 @@ context Revision
 
    --Todas las revisiones deben tener lugar después de que el coche se matriculase.
    inv RevisionPosteriorAMatriculacion: 
-      self.coche.fechaMatriculacion <= self.fechaInicio
+      self.coche.fechaMatriculacion < self.fechaInicio
 
    -- Si un coche está siendo sometido a una revisión, entonces el coche debe encontrarse en la misma ciudad donde está el taller.
    inv RevisionMismaCiudadCoche:      
@@ -182,16 +182,3 @@ context Revision
 
 
 -----------Fin Invariantes---------
-
-
---------------PREGUNTAS-------------------
-
----------------------------------------------
-
---   ¿Hay que hacer invariante que compruebe que el tipo de revisión es o de mantenimiento o de reparación (es decir no
---   es undefined?
---   ¿El invariante coherenciaViajes no se modelaria como precondición para iniciar un viaje?
---   ¿El invariante RevisionUnica no se modelaria como precondición para iniciar una revisión?
---   ¿solo un viaje en un momento dado no se modelaria como precondición para iniciar un viaje?
---   ¿También haría falta el invariante coherenciaRevisiones?
---   ¿Hay que añadir el atributo velocidad en el apartado a?
