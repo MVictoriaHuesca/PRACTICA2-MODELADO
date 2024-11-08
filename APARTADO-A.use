@@ -25,7 +25,7 @@ class Coche
 
       necesitaMantenimiento: Boolean derive: 
          if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then  -- 
-            true
+            false
          else
             let ultimaRevision: Revision = self.revision->select(r | r.tipo = TipoRevision::mantenimiento)->sortedBy(r | r.fechaFin)->last() in
                if ultimaRevision.oclIsUndefined() then true
@@ -35,7 +35,7 @@ class Coche
 
       enGarantia : Boolean derive:
          if self.fechaMatriculacion + 400 >= Clock.allInstances()->any(true).NOW then
-            false
+            true
          else
             self.revision->exists(r |
                r.taller.oclIsTypeOf(TallerOficial) and 
