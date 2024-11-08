@@ -152,8 +152,7 @@ context Coche
 
    -- Las revisiones no pueden solaparse en el tiempo !!!
    inv CoherenciaRevisiones: 
-      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 implies r1.fechaInicio <= r2.fechaFin)
-   
+      self.revision->sortedBy(r | r.fechaInicio)->forAll(r1, r2 | r1 <> r2 and r1.fechaInicio < r2.fechaInicio implies (r1.fechaFin < r2.fechaInicio))
 
 context Viaje
    
